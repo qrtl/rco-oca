@@ -1,5 +1,5 @@
 # Copyright 2023 Quartile Limited
-# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
+# License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
@@ -12,27 +12,32 @@ class MrpProduction(models.Model):
         compute="_compute_action_operation_auto_fill_allowed"
     )
     auto_fill_operation = fields.Boolean(
-        string="Auto fill operations",
+        string="Auto Fill Operations",
         related="picking_type_id.auto_fill_operation",
     )
 
     @api.depends("state", "move_raw_ids")
     def _compute_action_operation_auto_fill_allowed(self):
-        """
-        The auto fill button is allowed only in confrim state, and the
-        MO has component lines.
+        """The auto fill should be enabled when should_consume_qty is set (i.e. the
+        state should be either 'progress' or 'to_close').
         """
         for rec in self:
             rec.action_op_auto_fill_allowed = (
-                rec.state == "confirmed" and rec.move_raw_ids
+                rec.state in ("progress", "to_close") and rec.move_raw_ids
             )
+
+    @api.onchange("qty_producing")
+    def _onchange_qty_producing(self):
+        # Clear the quantity done of the raw materials whenever the produced qty is
+        # changed. User should redo the auto fill if needed.
+        self.move_raw_ids.quantity_done = 0.0
 
     def _check_action_operation_auto_fill_allowed(self):
         if any(not r.action_op_auto_fill_allowed for r in self):
             raise UserError(
                 _(
-                    "Filling the operations automatically is not possible, "
-                    "perhaps the productions aren't in the right state "
+                    "Filling the operations automatically is not possible. "
+                    "Perhaps the productions are not in the right state."
                 )
             )
 
@@ -49,4 +54,6 @@ class MrpProduction(models.Model):
             )
         )
         for move in operations_to_auto_fill:
-            move.quantity_done = move.reserved_availability
+            move.quantity_done = min(
+                move.should_consume_qty, move.reserved_availability
+            )
