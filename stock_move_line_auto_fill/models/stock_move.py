@@ -3,12 +3,11 @@
 # Copyright 2020 Tecnativa - Sergio Teruel
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
-from odoo import models, api
+from odoo import models
 
 
 class StockMove(models.Model):
-    _name = "stock.move"
-    _inherit = ['stock.move', 'auto.fill.operation.mixin']
+    _inherit = "stock.move"
 
     def _get_auto_fill_flag(self):
         return self.picking_id.auto_fill_operation
@@ -16,6 +15,16 @@ class StockMove(models.Model):
     def _get_avoid_lot_assignment_flag(self):
         return self.picking_id.picking_type_id.avoid_lot_assignment
     
+    def _check_auto_fill_conditions(self, move_line_vals):
+        auto_fill = self._get_auto_fill_flag()
+        avoid_lot_assignment = self._get_avoid_lot_assignment_flag()
+        lot_id = move_line_vals.get('lot_id')
+        return auto_fill and not (avoid_lot_assignment and lot_id)
+
+    def _update_qty_done(self, move_line_vals):
+        if self._check_auto_fill_conditions(move_line_vals):
+            move_line_vals['qty_done'] = move_line_vals.get('reserved_uom_qty', 0.0)
+
     def _prepare_move_line_vals(self, quantity=None, reserved_quant=None):
         """
         Auto-assign as done the quantity proposed for the lots.
