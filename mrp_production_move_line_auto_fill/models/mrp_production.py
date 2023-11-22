@@ -48,7 +48,7 @@ class MrpProduction(models.Model):
                 move.product_id
                 and not move.quantity_done
                 and (
-                    not move.product_id.tracking != 'none'
+                    not move.product_id.tracking != "none"
                     or not move.picking_id.picking_type_id.avoid_lot_assignment
                 )
             )

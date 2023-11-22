@@ -11,7 +11,7 @@ class StockMove(models.Model):
         if self.raw_material_production_id:
             return self.raw_material_production_id.auto_fill_operation
         return super()._get_auto_fill_flag()
-    
+
     def _get_avoid_lot_assignment_flag(self):
         if self.raw_material_production_id:
             return self.raw_material_production_id.picking_type_id.avoid_lot_assignment
